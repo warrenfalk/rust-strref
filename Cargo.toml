@@ -1,0 +1,6 @@
+[package]
+name = "strref"
+version = "0.1.0"
+authors = ["Warren Falk <warren@warrenfalk.com>"]
+
+[dependencies]
