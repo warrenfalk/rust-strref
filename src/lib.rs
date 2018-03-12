@@ -10,32 +10,37 @@
 //!
 //! ```
 //! use strref::{Str, IntoStr, StrRef};
+//!
 //! use std::collections::{HashMap};
 //!
+//! // You can store the same string multiple times in a struct
+//! // (You can't do this using lifetimes)
 //! struct MyStruct {
-//!   my_vec: Vec<Str>, // <-- use Str for storage, only reference is stored
-//!   my_map: HashMap<Str, usize>, // <-- Can be used for map key also
+//!   my_vec: Vec<Str>,            // <-- use "Str" for storage, only reference is stored
+//!   my_map: HashMap<Str, usize>, // <-- Can be used as a map key also
 //! }
 //!
 //! impl MyStruct {
+//!
 //!   // This is an example function that shows taking ownership of the string passed in
 //!   // it automatically handles passing in &'static str or Rc<String> or another Str
 //!   pub fn add<S: IntoStr>(&mut self, value: S) {
-//!     let owned = value.into_str(); // <-- take ownership like this
-//!     let cloned = owned.clone(); // <-- this is always as cheap as a refcount increment or cheaper
+//!     //          ^^^^^^^ allows taking ownership inside the function
+//!     let owned = value.into_str();     // <-- take ownership like this
+//!     let cloned = owned.clone();       // <-- this is always cheap
 //!     self.my_map.insert(cloned, self.my_vec.len());
 //!     self.my_vec.push(owned);
 //!   }
 //!
-//!   pub fn get<S: StrRef>(&self, value: S) -> Option<usize> {
-//!     //          ^^^^^^ use StrRef so that you can...
-//!     match self.my_map.get(value.borrow_str()) {
-//!       //                        ^^^^^^^^^^ ...borrow an &str like this
-//!       Some(i) => Some(*i),
-//!       None => None,
-//!     }
+//!   // This is an example function that shows borrowing
+//!   pub fn get<S: StrRef>(&self, value: S) -> Option<&usize> {
+//!     //          ^^^^^^ alows borrowing an &str inside the function
+//!     let s: &str = value.borrow_str();
+//!     //                  ^^^^^^^^^^ ...borrow an &str like this
+//!     self.my_map.get(s)
 //!   }
 //!
+//!   // An example of how to return the value as borrowed
 //!   pub fn get_str(&self, index: usize) -> Option<&Str> {
 //!     //                       return a reference ^^^^
 //!     self.my_vec.get(index)
@@ -43,11 +48,15 @@
 //! }
 //!
 //! let mut my_struct = MyStruct { my_vec: Vec::new(), my_map: HashMap::new() };
-//! my_struct.add("literal"); // <-- automatically handles literals without duplication
+//!
+//! my_struct.add("literal");           // <-- automatically handles literals without duplication
+//!
 //! let runtime_val = format!("built at {}", "runtime");
-//! my_struct.add(runtime_val); // <-- also handles taking ownership and wrapping with Rc
+//! my_struct.add(runtime_val);         // <-- also handles taking ownership and wrapping with Rc
+//!
 //! // comparisons with &str just work
 //! assert_eq!("built at runtime", my_struct.get_str(1).unwrap());
+//!
 //! ```
 
 
