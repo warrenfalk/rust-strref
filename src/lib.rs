@@ -1,12 +1,10 @@
 use std::rc::Rc;
-use std::sync::Arc;
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug)]
 pub enum Str {
     Rc(Rc<String>),
-    Arc(Arc<String>),
     Static(&'static str),
 }
 
@@ -23,7 +21,6 @@ impl Str {
     fn borrow_str(&self) -> &str {
         match self {
             &Str::Rc(ref s) => StrRef::borrow_str(s),
-            &Str::Arc(ref s) => StrRef::borrow_str(s),
             &Str::Static(s) => StrRef::borrow_str(s),
         }
     }
@@ -40,14 +37,6 @@ impl StrRef for Str{
 }
 
 impl StrRef for Rc<String> {
-    fn borrow_str(&self) -> &str {
-        let s1: &String = self.borrow();
-        let s2: &str = s1.borrow();
-        s2
-    }
-}
-
-impl StrRef for Arc<String> {
     fn borrow_str(&self) -> &str {
         let s1: &String = self.borrow();
         let s2: &str = s1.borrow();
@@ -91,7 +80,6 @@ impl Clone for Str {
     fn clone(&self) -> Str {
         match self {
             &Str::Rc(ref s) => Str::Rc(s.clone()),
-            &Str::Arc(ref s) => Str::Arc(s.clone()),
             &Str::Static(s) => Str::Static(s),
         }
     }
@@ -106,12 +94,6 @@ impl ToStr for Str {
 impl ToStr for Rc<String> {
     fn to_str(&self) -> Str {
         Str::Rc(self.clone())
-    }
-}
-
-impl ToStr for Arc<String> {
-    fn to_str(&self) -> Str {
-        Str::Arc(self.clone())
     }
 }
 
@@ -142,12 +124,6 @@ impl<'f> IntoStr for &'f String {
 impl IntoStr for Rc<String> {
     fn into_str(self) -> Str {
         Str::Rc(self)
-    }
-}
-
-impl IntoStr for Arc<String> {
-    fn into_str(self) -> Str {
-        Str::Arc(self)
     }
 }
 
