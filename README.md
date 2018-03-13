@@ -38,7 +38,7 @@ impl MyStruct {
   // This is an example function that shows taking ownership of the string passed in
   // it automatically handles passing in &'static str or Rc<String> or another Str
   pub fn add<S: IntoStr>(&mut self, value: S) {
-                ^^^^^^^ allows taking ownership inside the function
+    //          ^^^^^^^ allows taking ownership inside the function
     let owned = value.into_str();     // <-- take ownership like this
     let cloned = owned.clone();       // <-- this is always cheap
     self.my_map.insert(cloned, self.my_vec.len());
