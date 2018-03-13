@@ -64,6 +64,7 @@ use std::rc::Rc;
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::fmt::Display;
+use std::cmp::{PartialOrd,Ordering};
 
 #[derive(Debug)]
 pub enum Str {
@@ -239,6 +240,22 @@ impl PartialEq<Str> for Str {
     }
 }
 
+impl PartialOrd<Str> for Str {
+    fn partial_cmp(&self, other: &Str) -> Option<Ordering> {
+        let s1: &str = self.borrow_str();
+        let s2: &str = other.borrow_str();
+        s1.partial_cmp(s2)
+    }
+}
+
+impl Ord for Str {
+    fn cmp(&self, other: &Str) -> Ordering {
+        let s1: &str = self.borrow_str();
+        let s2: &str = other.borrow_str();
+        s1.cmp(s2)
+    }
+}
+
 impl Hash for Str {
     fn hash<H: Hasher>(&self, h: &mut H) {
         let s: &str = self.borrow_str();
@@ -250,8 +267,15 @@ impl Eq for Str {}
 
 #[cfg(test)]
 mod tests {
+    use super::{IntoStr};
+    use std::cmp::{Ordering};
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn disp() {
+        assert_eq!("foo", format!("f{}", "oo".into_str()));
+    }
+
+    #[test]
+    fn cmp() {
+        assert_eq!(Ordering::Less, "aa".into_str().cmp(&"bb".into_str()));
     }
 }
