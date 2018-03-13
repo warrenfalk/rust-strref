@@ -63,11 +63,21 @@
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
+use std::fmt::Display;
 
 #[derive(Debug)]
 pub enum Str {
     Rc(Rc<String>),
     Static(&'static str),
+}
+
+impl Display for Str {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        match self {
+            &Str::Rc(ref rc) => rc.fmt(f),
+            &Str::Static(s) => s.fmt(f),
+        }
+    }
 }
 
 impl Str {
