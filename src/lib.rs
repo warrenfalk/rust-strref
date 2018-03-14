@@ -67,16 +67,74 @@ use std::hash::{Hash, Hasher};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::cmp::{PartialOrd,Ordering};
+use std::str::from_utf8;
 
 #[derive(Debug)]
 pub enum Str {
+    Small(TinyStr),
     Rc(Arc<String>),
     Static(&'static str),
+}
+
+#[derive(Debug)]
+pub struct TinyStr {
+    len: u8,
+    bytes: [u8; 19],
+}
+
+impl From<String> for TinyStr {
+    fn from(source: String) -> TinyStr {
+        let len = source.len() as usize;
+        let mut tstr = TinyStr {
+            len: len as u8,
+            bytes: [0; 19],
+        };
+        tstr.bytes[0..len].clone_from_slice(source.as_bytes());
+        tstr
+    }
+}
+
+impl From<Rc<String>> for TinyStr {
+    fn from(source: Rc<String>) -> TinyStr {
+        let s: String = Rc::try_unwrap(source).unwrap();
+        s.into()
+    }
+}
+
+impl Copy for TinyStr {
+}
+
+impl Clone for TinyStr {
+    fn clone(&self) -> Self {
+        TinyStr {
+            len: self.len,
+            bytes: self.bytes,
+        }
+    }
+}
+
+impl Display for TinyStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        let s: &str = self.borrow();
+        s.fmt(f)
+    }
+}
+
+impl Borrow<str> for TinyStr {
+    fn borrow(&self) -> &str {
+        let len = self.len as usize;
+        let bytes = &self.bytes[..len];
+        match from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => "??",
+        }
+    }
 }
 
 impl Display for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         match self {
+            &Str::Small(ref t) => t.fmt(f),
             &Str::Rc(ref rc) => rc.fmt(f),
             &Str::Static(s) => s.fmt(f),
         }
@@ -88,6 +146,7 @@ impl Deref for Str {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            &Str::Small(ref t) => t.borrow(),
             &Str::Rc(ref rc) => Deref::deref(rc),
             &Str::Static(ref s) => s,
         }
@@ -106,6 +165,7 @@ impl Str {
 
     fn borrow_str(&self) -> &str {
         match self {
+            &Str::Small(ref t) => t.borrow(),
             &Str::Rc(ref s) => StrRef::borrow_str(s),
             &Str::Static(s) => StrRef::borrow_str(s),
         }
@@ -172,6 +232,7 @@ pub trait IntoStr : StrRef {
 impl Clone for Str {
     fn clone(&self) -> Str {
         match self {
+            &Str::Small(t) => Str::Small(t),
             &Str::Rc(ref s) => Str::Rc(s.clone()),
             &Str::Static(s) => Str::Static(s),
         }
@@ -204,6 +265,7 @@ impl IntoStr for Str {
 
 impl IntoStr for String {
     fn into_str(self) -> Str {
+        if self.len() <= 19 { return Str::Small(self.into()); }
         Str::Rc(Arc::new(self))
     }
 }
@@ -222,6 +284,8 @@ impl IntoStr for Arc<String> {
 
 impl IntoStr for Rc<String> {
     fn into_str(self) -> Str {
+        if self.len() <= 19 { return Str::Small(self.into()); }
+
         let s: &String = self.borrow();
         let cloned = s.clone();
         Str::Rc(Arc::new(cloned))
@@ -299,10 +363,16 @@ mod tests {
     use std::cmp::{Ordering};
     use std::sync::Arc;
     use std::rc::Rc;
+    use std::borrow::Borrow;
 
     #[test]
     fn disp() {
         assert_eq!("foo", format!("f{}", "oo".into_str()));
+    }
+
+    #[test]
+    fn size() {
+        assert_eq!(24, ::std::mem::size_of::<Str>());
     }
 
     #[test]
@@ -312,11 +382,24 @@ mod tests {
 
     #[test]
     fn pass_string() {
-        let s = "String value".to_string();
+        let s = "String value that is too long to fit in small string".to_string();
         let ps = s.as_ptr();
         let ss = s.into_str();
         let ps2 = ss.as_ptr();
         assert_eq!(ps, ps2);
+    }
+
+    #[test]
+    fn pass_small_string() {
+        let s = "String value".to_string();
+        let ps = s.as_ptr();
+        let ss = s.into_str();
+        let ss2 = ss.clone();
+        let ps2 = ss.as_ptr();
+        assert_ne!(ps, ps2);
+        assert_ne!(ss.borrow_str().as_ptr(), ss2.borrow_str().as_ptr());
+        assert_eq!("String value", ss);
+        assert_eq!("String value", ss2);
     }
 
     #[test]
@@ -325,8 +408,10 @@ mod tests {
         let ps = s.as_ptr();
         let arc = Arc::new(s);
         let ss = arc.into_str();
+        let ss2 = ss.clone();
         let ps2 = ss.as_ptr();
         assert_eq!(ps, ps2);
+        assert_eq!(ss.borrow_str().as_ptr(), ss2.borrow_str().as_ptr());
     }
 
     #[test]

@@ -6,12 +6,13 @@ It stores these references roughly as follows:
 
 ```rust
 pub enum Str {
+    Small(TinyStr),
     Rc(Arc<String>),
     Static(&'static str),
 }
 ```
 
-Calling ```.clone()``` is always as cheap as possible, incurring only an atomic reference increment (and eventually decrement on ```drop()```)
+Calling ```.clone()``` is always as cheap as possible, incurring at most an atomic reference increment/decrement using Arc<String> and using a stack-allocated string for strings smaller than the size of an Arc<String>
 
 ## Purpose
 
