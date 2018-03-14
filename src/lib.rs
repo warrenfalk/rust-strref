@@ -64,7 +64,7 @@ use std::sync::Arc;
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::ops::Deref;
 use std::cmp::{PartialOrd,Ordering};
 use std::str::from_utf8;
@@ -76,10 +76,16 @@ pub enum Str {
     Static(&'static str),
 }
 
-#[derive(Debug)]
 pub struct TinyStr {
     len: u8,
     bytes: [u8; 19],
+}
+
+impl Debug for TinyStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        let s: &str = self.borrow();
+        Debug::fmt(s, f)
+    }
 }
 
 impl From<String> for TinyStr {
@@ -116,7 +122,7 @@ impl Clone for TinyStr {
 impl Display for TinyStr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         let s: &str = self.borrow();
-        s.fmt(f)
+        Display::fmt(s, f)
     }
 }
 
@@ -134,9 +140,9 @@ impl Borrow<str> for TinyStr {
 impl Display for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         match self {
-            &Str::Small(ref t) => t.fmt(f),
-            &Str::Rc(ref rc) => rc.fmt(f),
-            &Str::Static(s) => s.fmt(f),
+            &Str::Small(ref t) => Display::fmt(t, f),
+            &Str::Rc(ref rc) => Display::fmt(rc, f),
+            &Str::Static(s) => Display::fmt(s, f),
         }
     }
 }
@@ -359,11 +365,10 @@ impl Eq for Str {}
 
 #[cfg(test)]
 mod tests {
-    use super::{IntoStr, Str};
+    use super::{IntoStr, Str, TinyStr};
     use std::cmp::{Ordering};
     use std::sync::Arc;
     use std::rc::Rc;
-    use std::borrow::Borrow;
 
     #[test]
     fn disp() {
@@ -423,5 +428,11 @@ mod tests {
         let ps2 = ss.as_ptr();
         // Rc's require full copy to be converted into Strs
         assert_ne!(ps, ps2);
+    }
+
+    #[test]
+    fn debug_str_for_tiny() {
+        let t = TinyStr::from("String value".to_string());
+        assert_eq!("\"String value\"", format!("{:?}", t));
     }
 }
