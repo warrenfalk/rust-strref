@@ -71,27 +71,27 @@ use std::str::from_utf8;
 
 #[derive(Debug)]
 pub enum Str {
-    Small(TinyStr),
+    Small(SmallStr),
     Rc(Arc<String>),
     Static(&'static str),
 }
 
-pub struct TinyStr {
+pub struct SmallStr {
     len: u8,
     bytes: [u8; 19],
 }
 
-impl Debug for TinyStr {
+impl Debug for SmallStr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         let s: &str = self.borrow();
         Debug::fmt(s, f)
     }
 }
 
-impl From<String> for TinyStr {
-    fn from(source: String) -> TinyStr {
+impl From<String> for SmallStr {
+    fn from(source: String) -> SmallStr {
         let len = source.len() as usize;
-        let mut tstr = TinyStr {
+        let mut tstr = SmallStr {
             len: len as u8,
             bytes: [0; 19],
         };
@@ -100,33 +100,33 @@ impl From<String> for TinyStr {
     }
 }
 
-impl From<Rc<String>> for TinyStr {
-    fn from(source: Rc<String>) -> TinyStr {
+impl From<Rc<String>> for SmallStr {
+    fn from(source: Rc<String>) -> SmallStr {
         let s: String = Rc::try_unwrap(source).unwrap();
         s.into()
     }
 }
 
-impl Copy for TinyStr {
+impl Copy for SmallStr {
 }
 
-impl Clone for TinyStr {
+impl Clone for SmallStr {
     fn clone(&self) -> Self {
-        TinyStr {
+        SmallStr {
             len: self.len,
             bytes: self.bytes,
         }
     }
 }
 
-impl Display for TinyStr {
+impl Display for SmallStr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         let s: &str = self.borrow();
         Display::fmt(s, f)
     }
 }
 
-impl Borrow<str> for TinyStr {
+impl Borrow<str> for SmallStr {
     fn borrow(&self) -> &str {
         let len = self.len as usize;
         let bytes = &self.bytes[..len];
@@ -365,7 +365,7 @@ impl Eq for Str {}
 
 #[cfg(test)]
 mod tests {
-    use super::{IntoStr, Str, TinyStr};
+    use super::{IntoStr, Str, SmallStr};
     use std::cmp::{Ordering};
     use std::sync::Arc;
     use std::rc::Rc;
@@ -431,8 +431,8 @@ mod tests {
     }
 
     #[test]
-    fn debug_str_for_tiny() {
-        let t = TinyStr::from("String value".to_string());
+    fn debug_str_for_small() {
+        let t = SmallStr::from("String value".to_string());
         assert_eq!("\"String value\"", format!("{:?}", t));
     }
 }
