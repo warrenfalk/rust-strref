@@ -60,15 +60,17 @@
 //! ```
 
 
+use std::sync::Arc;
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::fmt::Display;
+use std::ops::Deref;
 use std::cmp::{PartialOrd,Ordering};
 
 #[derive(Debug)]
 pub enum Str {
-    Rc(Rc<String>),
+    Rc(Arc<String>),
     Static(&'static str),
 }
 
@@ -77,6 +79,17 @@ impl Display for Str {
         match self {
             &Str::Rc(ref rc) => rc.fmt(f),
             &Str::Static(s) => s.fmt(f),
+        }
+    }
+}
+
+impl Deref for Str {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            &Str::Rc(ref rc) => Deref::deref(rc),
+            &Str::Static(ref s) => s,
         }
     }
 }
@@ -109,7 +122,7 @@ impl StrRef for Str{
     }
 }
 
-impl StrRef for Rc<String> {
+impl StrRef for Arc<String> {
     fn borrow_str(&self) -> &str {
         let s1: &String = self.borrow();
         let s2: &str = s1.borrow();
@@ -141,6 +154,13 @@ impl<'f> StrRef for &'f String {
     }
 }
 
+impl StrRef for Rc<String> {
+    fn borrow_str(&self) -> &str {
+        let ss: &String = self.borrow();
+        ss.borrow()
+    }
+}
+
 pub trait ToStr : StrRef {
     fn to_str(&self) -> Str;
 }
@@ -164,7 +184,7 @@ impl ToStr for Str {
     }
 }
 
-impl ToStr for Rc<String> {
+impl ToStr for Arc<String> {
     fn to_str(&self) -> Str {
         Str::Rc(self.clone())
     }
@@ -184,19 +204,27 @@ impl IntoStr for Str {
 
 impl IntoStr for String {
     fn into_str(self) -> Str {
-        Str::Rc(Rc::new(self))
+        Str::Rc(Arc::new(self))
     }
 }
 
 impl<'f> IntoStr for &'f String {
     fn into_str(self) -> Str {
-        Str::Rc(Rc::new(self.clone()))
+        Str::Rc(Arc::new(self.clone()))
+    }
+}
+
+impl IntoStr for Arc<String> {
+    fn into_str(self) -> Str {
+        Str::Rc(self)
     }
 }
 
 impl IntoStr for Rc<String> {
     fn into_str(self) -> Str {
-        Str::Rc(self)
+        let s: &String = self.borrow();
+        let cloned = s.clone();
+        Str::Rc(Arc::new(cloned))
     }
 }
 
@@ -267,8 +295,11 @@ impl Eq for Str {}
 
 #[cfg(test)]
 mod tests {
-    use super::{IntoStr};
+    use super::{IntoStr, Str};
     use std::cmp::{Ordering};
+    use std::sync::Arc;
+    use std::rc::Rc;
+
     #[test]
     fn disp() {
         assert_eq!("foo", format!("f{}", "oo".into_str()));
@@ -277,5 +308,35 @@ mod tests {
     #[test]
     fn cmp() {
         assert_eq!(Ordering::Less, "aa".into_str().cmp(&"bb".into_str()));
+    }
+
+    #[test]
+    fn pass_string() {
+        let s = "String value".to_string();
+        let ps = s.as_ptr();
+        let ss = s.into_str();
+        let ps2 = ss.as_ptr();
+        assert_eq!(ps, ps2);
+    }
+
+    #[test]
+    fn pass_arc() {
+        let s = "String value".to_string();
+        let ps = s.as_ptr();
+        let arc = Arc::new(s);
+        let ss = arc.into_str();
+        let ps2 = ss.as_ptr();
+        assert_eq!(ps, ps2);
+    }
+
+    #[test]
+    fn pass_rc() {
+        let s = "String value".to_string();
+        let ps = s.as_ptr();
+        let rc = Rc::new(s);
+        let ss: Str = rc.into_str();
+        let ps2 = ss.as_ptr();
+        // Rc's require full copy to be converted into Strs
+        assert_ne!(ps, ps2);
     }
 }

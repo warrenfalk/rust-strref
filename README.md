@@ -6,12 +6,12 @@ It stores these references roughly as follows:
 
 ```rust
 pub enum Str {
-    Rc(Rc<String>),
+    Rc(Arc<String>),
     Static(&'static str),
 }
 ```
 
-Calling ```.clone()``` is always as cheap as possible, incurring only a reference increment (and eventually decrement on ```drop()```)
+Calling ```.clone()``` is always as cheap as possible, incurring only an atomic reference increment (and eventually decrement on ```drop()```)
 
 ## Purpose
 
@@ -36,7 +36,7 @@ struct MyStruct {
 impl MyStruct {
 
   // This is an example function that shows taking ownership of the string passed in
-  // it automatically handles passing in &'static str or Rc<String> or another Str
+  // it automatically handles passing in &'static str or Arc<String> or another Str
   pub fn add<S: IntoStr>(&mut self, value: S) {
     //          ^^^^^^^ allows taking ownership inside the function
     let owned = value.into_str();     // <-- take ownership like this
